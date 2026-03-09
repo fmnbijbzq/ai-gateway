@@ -1,0 +1,41 @@
+server:
+  listen: ":8080"
+  read_timeout: 30s
+  write_timeout: 120s
+  max_retries: 3
+
+health_check:
+  interval: 10s
+  timeout: 5s
+  failure_threshold: 3
+  recovery_cooldown: 30s
+
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30s
+
+upstreams:
+  - name: "openai-primary"
+    base_url: "https://api.openai.com"
+    api_key: "sk-xxxx"
+    weight: 10
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+      - "gpt-3.5-turbo"
+
+  - name: "openai-backup"
+    base_url: "https://api.openai-backup.example.com"
+    api_key: "sk-yyyy"
+    weight: 5
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+
+  - name: "deepseek"
+    base_url: "https://api.deepseek.com"
+    api_key: "sk-zzzz"
+    weight: 8
+    models:
+      - "deepseek-chat"
+      - "deepseek-coder"
