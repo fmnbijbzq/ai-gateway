@@ -3,6 +3,7 @@ server:
   read_timeout: 30s
   write_timeout: 120s
   max_retries: 3
+  api_key: ""  # Set to require authentication on gateway endpoints
 
 health_check:
   interval: 10s

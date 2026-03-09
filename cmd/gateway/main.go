@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,17 +57,40 @@ func main() {
 	prx := proxy.New(bal, cfg.Server.MaxRetries, cfg.Server.WriteTimeout, logger)
 	adm := admin.New(upstreams, logger)
 
+	// Auth middleware for /v1/* endpoints
+	authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if cfg.Server.APIKey != "" {
+				key := r.Header.Get("X-Api-Key")
+				if key == "" {
+					if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+						key = strings.TrimPrefix(auth, "Bearer ")
+					}
+				}
+				if key != cfg.Server.APIKey {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnauthorized)
+					w.Write([]byte(`{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}`))
+					return
+				}
+			}
+			next(w, r)
+		}
+	}
+
 	// Set up routes
 	mux := http.NewServeMux()
 
-	// Health endpoint
+	// Health endpoint (no auth)
 	mux.HandleFunc("/health", checker.Handler())
 
-	// Admin endpoints
+	// Admin endpoints (no auth)
 	adm.Register(mux)
 
-	// API proxy endpoints
-	mux.HandleFunc("/v1/", prx.Handler())
+	// API proxy endpoints (with auth)
+	mux.HandleFunc("/v1/models", authMiddleware(prx.ModelsHandler()))
+	mux.HandleFunc("/v1/messages", authMiddleware(prx.MessagesHandler()))
+	mux.HandleFunc("/v1/", authMiddleware(prx.Handler()))
 
 	// Root handler
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

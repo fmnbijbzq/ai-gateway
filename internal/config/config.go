@@ -20,6 +20,7 @@ type ServerConfig struct {
 	ReadTimeout  time.Duration `yaml:"read_timeout"`
 	WriteTimeout time.Duration `yaml:"write_timeout"`
 	MaxRetries   int           `yaml:"max_retries"`
+	APIKey       string        `yaml:"api_key"`
 }
 
 type HealthCheckConfig struct {
@@ -40,6 +41,7 @@ type UpstreamConfig struct {
 	APIKey  string   `yaml:"api_key"`
 	Weight  int      `yaml:"weight"`
 	Models  []string `yaml:"models"`
+	APIType string   `yaml:"api_type"` // "openai" (default) or "anthropic"
 }
 
 func Load(path string) (*Config, error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,16 +71,27 @@ func (c *Checker) checkAll(ctx context.Context) {
 }
 
 func (c *Checker) checkOne(ctx context.Context, u *upstream.Upstream) {
-	url := u.BaseURL + "/v1/models"
+	baseURL := strings.TrimRight(u.BaseURL, "/")
+	healthURL := baseURL + "/v1/models"
+	if strings.HasSuffix(baseURL, "/v1") {
+		healthURL = baseURL + "/models"
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
 	if err != nil {
 		c.logger.Error("create health check request failed",
 			"upstream", u.Name, "error", err)
 		u.RecordHealthCheck(false, 0)
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+u.APIKey)
+
+	// Use correct auth header based on API type
+	if u.APIType == "anthropic" {
+		req.Header.Set("x-api-key", u.APIKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		req.Header.Set("Authorization", "Bearer "+u.APIKey)
+	}
 
 	start := time.Now()
 	resp, err := c.client.Do(req)

@@ -37,6 +37,7 @@ type Upstream struct {
 	APIKey  string
 	Weight  int
 	Models  map[string]bool
+	APIType string // "openai" or "anthropic"
 
 	mu                sync.RWMutex
 	healthy           bool
@@ -81,12 +82,17 @@ func New(cfg config.UpstreamConfig, cbCfg config.CircuitBreakerConfig, hcCfg con
 	for _, m := range cfg.Models {
 		models[m] = true
 	}
+	apiType := cfg.APIType
+	if apiType == "" {
+		apiType = "openai"
+	}
 	return &Upstream{
 		Name:               cfg.Name,
 		BaseURL:            cfg.BaseURL,
 		APIKey:             cfg.APIKey,
 		Weight:             cfg.Weight,
 		Models:             models,
+		APIType:            apiType,
 		healthy:            true,
 		enabled:            true,
 		cbState:            CircuitClosed,
@@ -98,9 +104,13 @@ func New(cfg config.UpstreamConfig, cbCfg config.CircuitBreakerConfig, hcCfg con
 }
 
 // SupportsModel checks if this upstream serves the given model.
+// Empty model matches any upstream (e.g. for /v1/models).
 func (u *Upstream) SupportsModel(model string) bool {
+	if model == "" {
+		return true
+	}
 	if len(u.Models) == 0 {
-		return true // no model filter means supports all
+		return true
 	}
 	return u.Models[model]
 }
